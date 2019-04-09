@@ -2,6 +2,7 @@ from pathlib import Path
 import inspect
 import sys
 from matplotlib.testing.compare import compare_images
+import matplotlib.testing.exceptions
 
 
 def caller_name(skip=2):
@@ -44,6 +45,7 @@ def caller_name(skip=2):
     del parentframe
     return ".".join(name)
 
+
 def caller_file(skip=2):
     """Get a name of a caller in the format module.class.method
 
@@ -67,11 +69,7 @@ def caller_file(skip=2):
     parentframe = stack[start]
 
     module = inspect.getmodule(parentframe)
-    # `modname` can be None when frame is executed directly in console
-    # TODO(techtonik): consider using __main__
-    # detect classnamarentframe.f_locals["self"].__class__.__name__)
     return parentframe.f_code.co_filename
-    
 
 
 def assert_image_equal(generated_image_path, suffix="", tolerance=2):
@@ -85,9 +83,9 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2):
         func = parts[-1]
         cls = parts[-2]
         module = parts[-3]
-        #if cls.lower() == cls:  # not actually a class, a module instead
-            #module = cls
-            #cls = "_"
+        # if cls.lower() == cls:  # not actually a class, a module instead
+        # module = cls
+        # cls = "_"
     else:
         module = parts[-2]
         cls = "_"
@@ -104,7 +102,17 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2):
         raise ValueError(
             f"Base_line image not found, perhaps: \ncp {generated_image_path} {should_path}"
         )
-    err = compare_images(
-        str(should_path), str(generated_image_path), tolerance, in_decorator=True
-    )
-    assert not err
+    try:
+        err = compare_images(
+            str(should_path), str(generated_image_path), tolerance, in_decorator=True
+        )
+    except matplotlib.testing.exceptions.ImageComparisonFailure as e:
+        raise ValueError(
+            "Matplot lib testing for %s vs %s failed\n%s"
+            % (generated_image_path, should_path, e)
+        )
+    if isinstance(err, ValueError):
+        raise ValueError(
+            "Images differed significantly, rms: %.2f\nExpected: %s\n, Actual: %s\n, diff: %s\n Accept with cp %s %s\n"
+            % (err.rms, err.expected, err.actual, err.diff, err.actual, err.expected)
+        )
