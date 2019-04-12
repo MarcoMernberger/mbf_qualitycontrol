@@ -34,7 +34,7 @@ def test_assert_images_equal():
         / "_"
         / "test_assert_images_equal.png"
     )
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         assert_image_equal(
             Path(__file__).parent
             / "base_images"

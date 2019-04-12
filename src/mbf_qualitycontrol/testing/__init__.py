@@ -72,31 +72,34 @@ def caller_file(skip=2):
     return parentframe.f_code.co_filename
 
 
-def assert_image_equal(generated_image_path, suffix="", tolerance=2):
+def assert_image_equal(generated_image_path, suffix="", tolerance=2, should_path=None):
     """assert that the generated image and the base_images/{test_module}/{cls}/{function_name}{suffix}.extension is identical"""
     generated_image_path = Path(generated_image_path).absolute()
-    extension = generated_image_path.suffix
-    caller = caller_name(1)
-    caller_fn = caller_file(1)
-    parts = caller.split(".")
-    if len(parts) >= 3:
-        func = parts[-1]
-        cls = parts[-2]
-        module = parts[-3]
-        # if cls.lower() == cls:  # not actually a class, a module instead
-        # module = cls
-        # cls = "_"
-    else:
-        module = parts[-2]
-        cls = "_"
-        func = parts[-1]
-    should_path = (
-        Path(caller_fn).parent
-        / "base_images"
-        / module
-        / cls
-        / (func + suffix + extension)
-    ).resolve()
+    if should_path is None:
+        extension = generated_image_path.suffix
+        caller = caller_name(1)
+        caller_fn = caller_file(1)
+        parts = caller.split(".")
+        if len(parts) >= 3:
+            func = parts[-1]
+            cls = parts[-2]
+            module = parts[-3]
+            # if cls.lower() == cls:  # not actually a class, a module instead
+            # module = cls
+            # cls = "_"
+        else:
+            module = parts[-2]
+            cls = "_"
+            func = parts[-1]
+        should_path = (
+            Path(caller_fn).parent
+            / "base_images"
+            / module
+            / cls
+            / (func + suffix + extension)
+        ).resolve()
+    if not generated_image_path.exists():
+        raise ValueError(f"Image {generated_image_path} was not created")
     if not should_path.exists():
         should_path.parent.mkdir(exist_ok=True, parents=True)
         raise ValueError(
@@ -108,7 +111,7 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2):
         )
     except matplotlib.testing.exceptions.ImageComparisonFailure as e:
         raise ValueError(
-            "Matplot lib testing for %s vs %s failed\n%s"
+            "Matplot lib testing for \n%s \n%s failed\n%s"
             % (generated_image_path, should_path, e)
         )
     if isinstance(err, ValueError):
