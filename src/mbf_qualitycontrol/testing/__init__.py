@@ -23,24 +23,24 @@ def caller_name(skip=2):
 
     stack = stack_(sys._getframe(1))
     start = 0 + skip
-    if len(stack) < start + 1:
-        return ""
+    if len(stack) < start + 1:  # pragma: no cover
+        return ""  # pragma: no cover
     parentframe = stack[start]
 
     name = []
     module = inspect.getmodule(parentframe)
     # `modname` can be None when frame is executed directly in console
     # TODO(techtonik): consider using __main__
-    if module:
+    if module:  # pragma: no branch
         name.append(module.__name__)
     # detect classname
     if "self" in parentframe.f_locals:
         # I don't know any way to detect call from the object method
         # XXX: there seems to be no way to detect static method call - it will
         #      be just a function call
-        name.append(parentframe.f_locals["self"].__class__.__name__)
+        name.append(parentframe.f_locals["self"].__class__.__name__)  # pragma: no cover
     codename = parentframe.f_code.co_name
-    if codename != "<module>":  # top level usually
+    if codename != "<module>":  # pragma: no branch  # top level usually
         name.append(codename)  # function or a method
     del parentframe
     return ".".join(name)
@@ -64,8 +64,8 @@ def caller_file(skip=2):
 
     stack = stack_(sys._getframe(1))
     start = 0 + skip
-    if len(stack) < start + 1:
-        return ""
+    if len(stack) < start + 1:  # pragma: no cover
+        return ""  # pragma: no cover
     parentframe = stack[start]
 
     module = inspect.getmodule(parentframe)
@@ -99,23 +99,26 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2, should_path
             / (func + suffix + extension)
         ).resolve()
     if not generated_image_path.exists():
-        raise ValueError(f"Image {generated_image_path} was not created")
+        raise IOError(f"Image {generated_image_path} was not created")
     if not should_path.exists():
         should_path.parent.mkdir(exist_ok=True, parents=True)
         raise ValueError(
             f"Base_line image not found, perhaps: \ncp {generated_image_path} {should_path}"
         )
     try:
+
         err = compare_images(
-            str(should_path), str(generated_image_path), tolerance, in_decorator=True
+            str(should_path), str(generated_image_path), tolerance, in_decorator=False
         )
     except matplotlib.testing.exceptions.ImageComparisonFailure as e:
         raise ValueError(
             "Matplot lib testing for \n%s \n%s failed\n%s"
             % (generated_image_path, should_path, e)
         )
-    if isinstance(err, ValueError):
-        raise ValueError(
-            "Images differed significantly, rms: %.2f\nExpected: %s\n, Actual: %s\n, diff: %s\n Accept with cp %s %s\n"
-            % (err.rms, err.expected, err.actual, err.diff, err.actual, err.expected)
-        )
+    # if isinstance(err, ValueError):
+    # raise ValueError(
+    # "Images differed significantly, rms: %.2f\nExpected: %s\n, Actual: %s\n, diff: %s\n Accept with cp %s %s\n"
+    #% (err.rms, err.expected, err.actual, err.diff, err.actual, err.expected)
+    # )
+    if err is not None:
+        raise ValueError(err)
