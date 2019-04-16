@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 import pypipegraph as ppg
-from mbf_qualitycontrol import register_qc, get_qc, do_qc, QCCallback
+from mbf_qualitycontrol import register_qc, get_qc, do_qc, QCCallback, no_qc
 from mbf_qualitycontrol.testing import assert_image_equal
 
 
@@ -34,9 +34,14 @@ class TestRegistration:
         assert len(ppg.util.global_pipegraph.jobs) == 0
         do_qc(lambda name: False)
         assert len(ppg.util.global_pipegraph.jobs) == 0
+        #doqc throws away the currest tsack
+        do_qc(lambda name: "q" in name)
+        assert len(ppg.util.global_pipegraph.jobs) == 0
+        new_pipegraph.new_pipegraph()
+        register_qc("q", q)
         do_qc(lambda name: "q" in name)
         assert len(ppg.util.global_pipegraph.jobs) == 1
-
+        
     def test_assert_images_equal_inside_class(self):
         assert_image_equal(
             Path(__file__).parent
@@ -54,7 +59,21 @@ class TestRegistration:
                 / "test_assert_images_equal.png",
                 "_b",
             )
+    def test_non_qc_raises(self, new_pipegraph):
+        with pytest.raises(TypeError):
+            register_qc("q", 'q')
 
+    def test_no_qc(self, new_pipegraph):
+        q = QCCallback(lambda: ppg.ParameterInvariant("shu", "shu"))
+        with no_qc():
+            register_qc("q", q)
+            get_qc("q") # no huhu here, we only throw it away after the context manager
+        with pytest.raises(KeyError):
+            get_qc("q")
+        register_qc("q", q)
+        assert get_qc("q") == q
+        
+    
 
 def test_assert_images_equal():
     assert_image_equal(

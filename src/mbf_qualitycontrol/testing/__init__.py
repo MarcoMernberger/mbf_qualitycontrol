@@ -121,4 +121,5 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2, should_path
     #% (err.rms, err.expected, err.actual, err.diff, err.actual, err.expected)
     # )
     if err is not None:
+        print("accept with cp %s %s" % (generated_image_path, should_path))
         raise ValueError(err)
