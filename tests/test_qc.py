@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 import pypipegraph as ppg
-from mbf_qualitycontrol import register_qc, get_qc, do_qc, QCCallback, no_qc
+from mbf_qualitycontrol import register_qc, get_qc, do_qc, QCCallback, no_qc, QCCollector
 from mbf_qualitycontrol.testing import assert_image_equal
 
 
@@ -72,6 +72,13 @@ class TestRegistration:
             get_qc("q")
         register_qc("q", q)
         assert get_qc("q") == q
+
+    def test_qc_collector(self, new_pipegraph):
+        q = QCCollector('test.png', lambda x: sum(x),
+                        1)
+        q2 = QCCollector('test.png', lambda x: sum(x),2)
+        assert q is q2
+        assert q.get_qc_job() == 3
         
     
 
@@ -134,3 +141,5 @@ def test_assert_images_equal():
         suffix="_d",
     )
     assert 'do not match expected size' in str(e.value)
+
+
