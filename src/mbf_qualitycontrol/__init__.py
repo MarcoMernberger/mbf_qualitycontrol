@@ -18,6 +18,8 @@ def register_qc(job):
 
 
 def qc_disabled():
+    if not ppg.inside_ppg():
+        return True
     return getattr(ppg.util.global_pipegraph, "_qc_keep_function", True) is False
 
 

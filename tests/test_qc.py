@@ -77,6 +77,16 @@ class TestRegistration:
         new_pipegraph.new_pipegraph()
         assert not qc_disabled()
 
+    def test_no_pipegraph_means_disabled(self, no_pipegraph):
+        assert ppg.util.global_pipegraph is None
+        assert qc_disabled()
+
+    def test_both_fixtures(self, both_ppg_and_no_ppg_no_qc):
+        if not ppg.inside_ppg():
+            assert qc_disabled()
+        else:
+            assert qc_disabled()
+
     def test_new_pipegraph_no_qc(self, new_pipegraph_no_qc):
         assert qc_disabled()
 
