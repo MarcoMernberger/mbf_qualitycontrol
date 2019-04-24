@@ -1,92 +1,71 @@
 import pypipegraph as ppg
 
 
-def ensure_collector():
-    if not hasattr(ppg.util.global_pipegraph, "_global_qc_collector"):
-        ppg.util.global_pipegraph._global_qc_collector = {}
-    return ppg.util.global_pipegraph._global_qc_collector
+def register_qc(job):
+    for k in job:
+        if not isinstance(job, ppg.Job):
+            raise TypeError("register_qc takes only job objects")
+    job._mbf_qc = True
+    if hasattr(ppg.util.global_pipegraph, "_qc_keep_function") and (
+        getattr(ppg.util.global_pipegraph, "_qc_keep_function") is False
+        or not getattr(ppg.util.global_pipegraph, "_qc_keep_function")(job)
+    ):
+        job.prune()
+    for attr in dir(job):
+        if isinstance(getattr(job, attr), ppg.Job):
+            register_qc(getattr(job, attr))
+    return job
 
 
-def register_qc(name, qc_object):
-    if not ppg.inside_ppg():  # pragma: no cover
-        return
-    if hasattr(ppg.util.global_pipegraph, "_global_qc_started"):
-        raise ValueError(
-            "trying to register qc without pipegraph or after do_qc has started"
+def qc_disabled():
+    return getattr(ppg.util.global_pipegraph, "_qc_keep_function", True) is False
+
+
+def disable_qc():
+    """Disable qc.
+    That means new jobs that are generated are automatically pruned
+    (but may be revived by calling prune_qc with an appropriate keep function),
+    but code that depends on qc_disabled() does not even generate the jobs"""
+
+    ppg.util.global_pipegraph._qc_keep_function = False
+
+
+def prune_qc(keep=False):
+    """Prune all qc jobs but those where keep returns True.
+    Also applies to further qc jobs!"""
+    ppg.util.global_pipegraph._qc_keep_function = keep
+    for job in get_qc_jobs():
+        if keep is not False and keep(job):
+            job.unprune()
+        else:
+            job.prune()
+
+
+def get_qc_jobs():
+    """Get all qc jobs defined so far"""
+    for job in ppg.util.global_pipegraph.jobs.values():
+        if hasattr(job, "_mbf_qc"):
+            yield job
+
+
+class QCCollectingJob(ppg.FileGeneratingJob):
+    def __init__(self, job_id, callback):
+        if ppg.job.was_inited_before(self, QCCollectingJob):
+            return
+        self.inner_callback = callback
+        super().__init__(
+            job_id, lambda output_filename: callback(output_filename, self.objects)
         )
-    if name in ensure_collector():
-        raise KeyError("Duplicate name: %s" % name)
-    if not hasattr(qc_object, "get_qc_job"):
-        raise TypeError("not a qc object")
-    qc_object.name = name
-    ensure_collector()[name] = qc_object
-    return qc_object
+        self.objects = []
 
+    def add(self, obj):
+        self.objects.append(obj)
+        return self
 
-def get_qc(name):
-    return ensure_collector()[name]
-
-
-def do_qc(filter_by_name=lambda name: True):
-    jobs = []
-    collected = ensure_collector()
-    ppg.util.global_pipegraph._global_qc_started = True
-    del ppg.util.global_pipegraph._global_qc_collector
-    for name, v in collected.items():
-        if filter_by_name(name):
-            jobs.append(v.get_qc_job())
-    return jobs
-
-
-class QCCallback:
-    """Just a slightly fancy wrapper around a callback returning a ppg.Job"""
-
-    def __init__(self, callback):
-        if not hasattr(callback, "__call__"):
-            raise ValueError("callback must be a callable")
-        self.callback = callback
-
-    def get_qc_job(self):
-        return self.callback()
-
-
-class no_qc:
-    """When you want some objects not to register their qc - e.g. for testing
-
-    Use as context manager
-    with no_qc():
-        lane = mbf_aligned.lanes.Lane(...)
-    """
-
-    def __enter__(self):
-        self.old_collector = ensure_collector()
-        ppg.util.global_pipegraph._global_qc_collector = {}
-        return ppg.util.global_pipegraph._global_qc_collector
-
-    def __exit__(self, *args):
-        ppg.util.global_pipegraph._global_qc_collector = self.old_collector
-
-
-def QCCollector(output_filename, job_func, element):
-    """A qc that collects elements and plots them all at once"""
-    try:
-        q = get_qc(output_filename)
-    except KeyError:
-        q = _QCCollector(job_func)
-        register_qc(output_filename, q)
-    q.add(element)
-    return q
-
-
-class _QCCollector:
-    """A qc that collects elements and plots them all at once"""
-
-    def __init__(self, callback):
-        self.elements = []
-        self.callback = callback
-
-    def add(self, element):
-        self.elements.append(element)
-
-    def get_qc_job(self):
-        return self.callback(self.elements)
+    def inject_auto_invariants(self):
+        if not self.do_ignore_code_changes:
+            self.depends_on(
+                ppg.FunctionInvariant(self.job_id + "_func", self.inner_callback)
+            )
+        else:
+            pass

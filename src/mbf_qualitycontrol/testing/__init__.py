@@ -68,7 +68,6 @@ def caller_file(skip=2):
         return ""  # pragma: no cover
     parentframe = stack[start]
 
-    module = inspect.getmodule(parentframe)
     return parentframe.f_code.co_filename
 
 
@@ -118,7 +117,7 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2, should_path
     # if isinstance(err, ValueError):
     # raise ValueError(
     # "Images differed significantly, rms: %.2f\nExpected: %s\n, Actual: %s\n, diff: %s\n Accept with cp %s %s\n"
-    #% (err.rms, err.expected, err.actual, err.diff, err.actual, err.expected)
+    # % (err.rms, err.expected, err.actual, err.diff, err.actual, err.expected)
     # )
     if err is not None:
         print("accept with cp %s %s" % (generated_image_path, should_path))
