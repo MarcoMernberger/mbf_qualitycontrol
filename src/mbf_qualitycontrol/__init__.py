@@ -1,5 +1,7 @@
 import pypipegraph as ppg
 
+__version__ = "0.1"
+
 
 def register_qc(job):
     for k in job:
