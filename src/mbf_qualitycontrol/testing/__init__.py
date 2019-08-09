@@ -71,6 +71,17 @@ def caller_file(skip=2):
     return parentframe.f_code.co_filename
 
 
+def dump_cp_for_changed_images(generated_image_path, should_path):
+    import shlex
+
+    print("use %s to accept all image changes" % test_accept_image_path)
+    with open(test_accept_image_path, "a") as op:
+        op.write(
+            "cp %s %s\n"
+            % (shlex.quote(str(generated_image_path)), shlex.quote(str(should_path)))
+        )
+
+
 def assert_image_equal(generated_image_path, suffix="", tolerance=2, should_path=None):
     """assert that the generated image and the base_images/{test_module}/{cls}/{function_name}{suffix}.extension is identical"""
     generated_image_path = Path(generated_image_path).absolute()
@@ -101,6 +112,7 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2, should_path
         raise IOError(f"Image {generated_image_path} was not created")
     if not should_path.exists():
         should_path.parent.mkdir(exist_ok=True, parents=True)
+        dump_cp_for_changed_images(generated_image_path, should_path)
         raise ValueError(
             f"Base_line image not found, perhaps: \ncp {generated_image_path} {should_path}"
         )
@@ -110,6 +122,7 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2, should_path
             str(should_path), str(generated_image_path), tolerance, in_decorator=False
         )
     except matplotlib.testing.exceptions.ImageComparisonFailure as e:
+        dump_cp_for_changed_images(generated_image_path, should_path)
         raise ValueError(
             "Matplot lib testing for \n%s \n%s failed\n%s"
             % (generated_image_path, should_path, e)
@@ -120,5 +133,10 @@ def assert_image_equal(generated_image_path, suffix="", tolerance=2, should_path
     # % (err.rms, err.expected, err.actual, err.diff, err.actual, err.expected)
     # )
     if err is not None:
-        print("accept with cp %s %s" % (generated_image_path, should_path))
+        dump_cp_for_changed_images(generated_image_path, should_path)
         raise ValueError(err)
+
+
+test_accept_image_path = Path("tests/run/accept_all_image_changes.sh").absolute()
+if test_accept_image_path.exists():
+    test_accept_image_path.unlink()
